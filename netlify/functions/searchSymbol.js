@@ -11,7 +11,7 @@ exports.handler = async function (event, context) {
       };
     }
 
-    // 🔐 STEP 1: LOGIN FIRST (Get fresh JWT)
+    // STEP 1: LOGIN FIRST
     const loginResponse = await axios.post(
       "https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword",
       {
@@ -33,10 +33,20 @@ exports.handler = async function (event, context) {
       }
     );
 
+    if (!loginResponse.data || !loginResponse.data.data) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error: "Login failed",
+          details: loginResponse.data,
+        }),
+      };
+    }
+
     const jwtToken = loginResponse.data.data.jwtToken;
 
-    // 🔍 STEP 2: SEARCH SYMBOL
-    const searchResponse = await axios.post(
+    // STEP 2: SEARCH SYMBOL
+    const response = await axios.post(
       "https://apiconnect.angelone.in/rest/secure/angelbroking/order/v1/searchScrip",
       {
         exchange: "NFO",
@@ -46,8 +56,8 @@ exports.handler = async function (event, context) {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          "X-PrivateKey": process.env.ANGEL_API_KEY,
           Authorization: `Bearer ${jwtToken}`,
+          "X-PrivateKey": process.env.ANGEL_API_KEY,
           "X-SourceID": "WEB",
           "X-UserType": "USER",
         },
@@ -56,13 +66,14 @@ exports.handler = async function (event, context) {
 
     return {
       statusCode: 200,
-      body: JSON.stringify(searchResponse.data),
+      body: JSON.stringify(response.data),
     };
+
   } catch (error) {
     return {
       statusCode: 500,
       body: JSON.stringify(
-        error.response ? error.response.data : error.message
+        error.response?.data || error.message
       ),
     };
   }
